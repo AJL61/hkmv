@@ -15,16 +15,16 @@ Fichiers
 
 ==========================================================
 Premiers réflexes -- J1 
-# 1. Créer la structure de travail
+1. Créer la structure de travail
 mkdir -p ~/exam/{screenshots,loot,notes}
 
-# 2. Noter l'IP cible
+2. Noter l'IP cible
 export IP=10.10.10.10
 
-# 3. Lancer le scan
+3. Lancer le scan
 nmap -sV -sC $IP -oN ~/exam/notes/scan.txt
 
-# 4. Pendant le scan — noter les infos de base
+4. Pendant le scan — noter les infos de base
 echo "Target : $IP" >> ~/exam/notes/notes.txt
 
 ==========================================================
