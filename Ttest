@@ -1,0 +1,197 @@
+# 15 — Nettoyage — Traces sur la Cible
+
+> Objectif : supprimer les artefacts laissés sur la machine compromise pendant un pentest.
+> Applicable en engagement réel ou lab. Toujours avec autorisation explicite du client.
+
+-----
+
+## Linux — nettoyage des traces
+
+### Historique de commandes
+
+```bash
+# Vider l'historique de la session courante
+history -c
+
+# Supprimer le fichier d'historique
+cat /dev/null > ~/.bash_history
+unset HISTFILE        # désactiver l'enregistrement pour la session
+
+# Désactiver l'historique dès l'entrée sur la machine
+export HISTSIZE=0
+export HISTFILE=/dev/null
+```
+
+### Fichiers uploadés / créés
+
+```bash
+# Supprimer les outils et shells uploadés
+rm -f /tmp/linpeas.sh
+rm -f /tmp/shell.elf
+rm -f /tmp/shell.php
+rm -rf /tmp/exam_*
+
+# Supprimer les fichiers créés pendant la privesc
+rm -f /tmp/bash
+rm -f /tmp/f          # pipe mkfifo
+```
+
+### Logs système
+
+```bash
+# Vider les logs d'authentification (connexions SSH, sudo)
+cat /dev/null > /var/log/auth.log
+cat /dev/null > /var/log/secure       # RedHat/CentOS
+
+# Vider les logs système
+cat /dev/null > /var/log/syslog
+cat /dev/null > /var/log/messages
+
+# Vider les logs Apache/Nginx
+cat /dev/null > /var/log/apache2/access.log
+cat /dev/null > /var/log/apache2/error.log
+cat /dev/null > /var/log/nginx/access.log
+
+# Supprimer des lignes spécifiques (ton IP) plutôt que tout vider
+grep -v "[TON_IP]" /var/log/auth.log > /tmp/clean.log
+mv /tmp/clean.log /var/log/auth.log
+```
+
+### Utilisateurs et backdoors créés
+
+```bash
+# Supprimer un utilisateur créé pendant l'exam
+userdel -r [username]
+
+# Vérifier et nettoyer les clés SSH ajoutées
+cat ~/.ssh/authorized_keys
+# Supprimer la ligne correspondant à ta clé
+
+# Supprimer une entrée ajoutée dans /etc/passwd
+# Éditer manuellement et supprimer la ligne ajoutée
+nano /etc/passwd
+```
+
+### Cron jobs ajoutés
+
+```bash
+# Vérifier les crons ajoutés
+crontab -l
+cat /etc/crontab
+
+# Supprimer une entrée cron
+crontab -e    # supprimer la ligne ajoutée
+```
+
+### Timestamps — restaurer les dates de fichiers modifiés
+
+```bash
+# Restaurer le timestamp d'un fichier modifié
+touch -r /etc/passwd.bak /etc/passwd
+# -r : copier le timestamp du fichier de référence
+```
+
+-----
+
+## Windows — nettoyage des traces
+
+### Fichiers uploadés
+
+```cmd
+del C:\Temp\winpeas.exe
+del C:\Temp\shell.exe
+del C:\Temp\chisel.exe
+del C:\Temp\mimikatz.exe
+rmdir /s /q C:\Temp\exam
+```
+
+### Historique PowerShell
+
+```powershell
+# Vider l'historique de la session
+Clear-History
+
+# Supprimer le fichier d'historique permanent
+Remove-Item (Get-PSReadlineOption).HistorySavePath -Force
+```
+
+### Logs Windows Event
+
+```cmd
+# Vider les logs (nécessite admin)
+wevtutil cl System
+wevtutil cl Security
+wevtutil cl Application
+
+# PowerShell
+Get-EventLog -LogName Security | ForEach-Object { Clear-EventLog -LogName Security }
+```
+
+### Via Metasploit (si session meterpreter active)
+
+```bash
+# Vider les logs Windows
+meterpreter > clearev
+
+# Supprimer des fichiers
+meterpreter > rm C:\\Temp\\shell.exe
+
+# Vider l'historique de commandes
+meterpreter > shell
+C:\> doskey /reinstall
+```
+
+### Comptes et backdoors créés
+
+```cmd
+# Supprimer un utilisateur créé
+net user [username] /delete
+
+# Supprimer du groupe admins
+net localgroup administrators [username] /delete
+
+# Vérifier les tâches planifiées créées
+schtasks /query /fo LIST
+schtasks /delete /tn [nom_tache] /f
+```
+
+### Services créés
+
+```cmd
+# Supprimer un service créé
+sc delete [nom_service]
+```
+
+-----
+
+## Checklist nettoyage — avant de quitter la cible
+
+### Linux
+
+- [ ] `history -c && cat /dev/null > ~/.bash_history`
+- [ ] Supprimer tous les fichiers dans `/tmp/`
+- [ ] Vider `/var/log/auth.log`
+- [ ] Supprimer les utilisateurs créés
+- [ ] Supprimer les clés SSH ajoutées
+- [ ] Supprimer les cron jobs ajoutés
+- [ ] Vérifier qu’aucun process malveillant ne tourne encore
+
+### Windows
+
+- [ ] Supprimer tous les fichiers uploadés dans `C:\Temp\`
+- [ ] `wevtutil cl Security && wevtutil cl System`
+- [ ] Vider l’historique PowerShell
+- [ ] Supprimer les comptes créés
+- [ ] Supprimer les services créés
+- [ ] Supprimer les tâches planifiées créées
+
+-----
+
+## Rappel important
+
+> En CTF ou exam académique, le nettoyage des traces sur la cible
+> n’est **pas toujours attendu** — certains exams notent les artefacts laissés.
+> Vérifier les consignes avant de nettoyer.
+> 
+> En engagement réel, le nettoyage fait partie du livrable
+> et doit être documenté dans le rapport.
